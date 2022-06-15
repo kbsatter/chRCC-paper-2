@@ -1,4 +1,5 @@
 
+
 rm(list = ls())
 library(tidyverse)
 library(caret)
@@ -92,6 +93,8 @@ svm.default
 svm.predict = svm.default %>% predict(X_test)
 confusionMatrix(Histology2, svm.predict)
 
+
+
 ## svm radial
 svm.default2 = train(y_train ~ .,
                      data = X_train,
@@ -104,6 +107,45 @@ svm.default2
 svm.predict2 = svm.default %>% predict(X_test)
 confusionMatrix(Histology2, svm.predict2)
 
+svm_val = svm.default %>% predict(x_val)
+confusionMatrix(y_val, svm_val)
+
+####
+
+library(lattice)
+library(AppliedPredictiveModeling)
+transparentTheme(trans = .9)
+
+featurePlot(x = X_train[ , c("KRT7", "S100A1", "AQP6",
+                             "HOOK2")], 
+            y = X_train$Histology,
+            plot = "density", 
+            scales = list(x = list(relation="free"), 
+                          y = list(relation="free")), 
+            adjust = 1.5, 
+            pch = "|", 
+            layout = c(4, 1), 
+            auto.key = list(columns = 3))
+
+featurePlot(x = X_test[ , c("KRT7", "S100A1", "AQP6",
+                            "HOOK2")], 
+            y = X_test$Histology2,
+            plot = "density", 
+            scales = list(x = list(relation="free"), 
+                          y = list(relation="free")), 
+            adjust = 1.5, 
+            pch = "|", 
+            layout = c(4, 1), 
+            auto.key = list(columns = 3))
+
+### base SVM
+library(tidyverse)    # data manipulation and visualization
+library(kernlab)      # SVM methodology
+library(e1071)        # SVM methodology
+library(RColorBrewer) # customized coloring of plots
+
+svmfit = svm(X_train[ , 1] ~ ., data = X_train[, -1], kernel = "linear", scale = F)
+plot(svmfit, X_train, BSPRY~KRT7)
 
 
 ####
