@@ -13,6 +13,14 @@ X_test %<>% t %>% as.data.frame() %>% select(1:30) %>% log2 %>%
 
 X_train = read.csv("trainData.csv", row.names = 1)
 identical(pheno$geo_accession, rownames(X_train))
+Histology = X_train$Histology2
+X_train %<>% select(-1) %>% scale(center = T, scale = T)
+
+index = createDataPartition(Histology, p = 0.8, list = F, times = 1)
+x_val = X_train[-index, ]
+X_train = X_train[index, ]
+y_train = Histology[index]
+y_val = Histology[-index]
 ## change DNAI3 for WDR63
 ### caret random forest
 control = trainControl(method = "repeatedcv",
@@ -26,12 +34,17 @@ mtry = sqrt(ncol(X_train))
 tunegrid = expand.grid(.mtry = mtry)
 
 ### create data.frame
-X_train %<>% select(-1) %>% scale(center = T, scale = T)
-Histology = ifelse(pheno$Histology2 == "chRCC", 1,2) %>% as.factor()
-X_train = cbind.data.frame(Histology, X_train)
+y_train = ifelse(y_train == "chRCC", 1, 2) %>% as.factor()
+y_val = ifelse(y_val == "chRCC", 1, 2)
+x_val = cbind.data.frame(y_val, x_val)
 
-Histology2 = c(rep(1, 16), rep(2, 14)) %>% as.factor()
-X_test = cbind.data.frame(Histology2, X_test)
+y_test = c(rep(1, 16), rep(2, 14)) %>% as.factor()
+
+
+
+X_train = cbind.data.frame(y_train, X_train)
+x_val = cbind.data.frame(y_val, x_val)
+X_test = cbind.data.frame(y_test, X_test)
 
 colnames(X_test)[7] = "WDR63"
 
@@ -52,7 +65,7 @@ u2$layout %>% as.data.frame() %>%
   ggtitle("chRCC-RO NanoString Data") + labs(color = "Histology")
 
 ### rf
-rf.defaults = train(Histology ~ .,
+rf.defaults = train(y_train ~ .,
                     data = X_train,
                     method = "rf",
                     metric = "Accuracy",
@@ -60,13 +73,15 @@ rf.defaults = train(Histology ~ .,
                     trcontrol = control)
 plot(rf.defaults$finalModel)
 plot(rf.defaults)
+rf.predict2 = rf.defaults %>% predict(x_val)
 rf.predict = rf.defaults %>% predict(X_test)
-confusionMatrix(Histology2, rf.predict)
+confusionMatrix(y_val %>% as.factor(), rf.predict2)
+confusionMatrix(y_test, rf.predict)
 
 
 
 ### svm
-svm.default = train(Histology ~ .,
+svm.default = train(y_train ~ .,
                     data = X_train,
                     method = "svmLinear",
                     metric = "Accuracy",
@@ -77,8 +92,17 @@ svm.default
 svm.predict = svm.default %>% predict(X_test)
 confusionMatrix(Histology2, svm.predict)
 
-test_score = cbind(rownames(X_test), Histology2, rf.predict, svm.predict)
-write.csv(test_score, file = "Supervised_Models.csv")
+## svm radial
+svm.default2 = train(y_train ~ .,
+                     data = X_train,
+                     method = "svmRadial",
+                     metric = "Accuracy",
+                     tunegrid = tunegrid,
+                     trcontrol = control)
+
+svm.default2
+svm.predict2 = svm.default %>% predict(X_test)
+confusionMatrix(Histology2, svm.predict2)
 
 
 
